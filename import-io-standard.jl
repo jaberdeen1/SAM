@@ -17,7 +17,7 @@ if Sys.KERNEL === :NT
     pathmark = "\\"
 else
     pathmark = "/"
-
+end
 #indexing vectors for initial data import groups
 intermediaryTotalsCol = findall(x -> occursin("T4", x), string.(IOSource[3,:]));
 intermediaryTotalsRow = findall(x -> occursin("T1", x), string.(IOSource[:,1]));
