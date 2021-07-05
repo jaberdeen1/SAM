@@ -9,8 +9,14 @@ Pkg.add("ExcelReaders")
 Pkg.add("JuMP")
 Pkg.add("Ipopt")
 =#
-using XLSX, ExcelReaders DataFrames, Tables, JuMP, Ipopt;
+using XLSX, ExcelReaders, DataFrames, Tables, JuMP, Ipopt;
 IOSource = XLSX.readdata("IO.xlsx", "io-table-5!A1:DV130");
+
+#filepath cross system compatability code
+if Sys.KERNEL === :NT
+    pathmark = "\\"
+else
+    pathmark = "/"
 
 #indexing vectors for initial data import groups
 intermediaryTotalsCol = findall(x -> occursin("T4", x), string.(IOSource[3,:]));
@@ -47,10 +53,10 @@ IOCapForm = findall(x -> occursin("Capital Formation", x), IONameCol);
 IOChangeInv = findall(x -> occursin("Changes in Inventories", x), IONameCol);
 
 #importing relevant ASNA data for table 5
-ASNAHouseCap = ExcelReaders.readxl("ASNAData\\5204039_Household_Capital_Account.xls", "Data1!A1:T71");
-ASNANonFinCap = ExcelReaders.readxl("ASNAData\\5204018_NonFin_Corp_Capital_Account.xls", "Data1!A1:T71");
-ASNAFinCap = ExcelReaders.readxl("ASNAData\\5204026_Fin_Corp_Capital_Account.xls", "Data1!A1:S71");
-ASNAGovCap = ExcelReaders.readxl("ASNAData\\5204032_GenGov_Capital_Account.xls", "Data1!A1:AV71");
+ASNAHouseCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204039_Household_Capital_Account.xls", "Data1!A1:T71");
+ASNANonFinCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204018_NonFin_Corp_Capital_Account.xls", "Data1!A1:T71");
+ASNAFinCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204026_Fin_Corp_Capital_Account.xls", "Data1!A1:S71");
+ASNAGovCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204032_GenGov_Capital_Account.xls", "Data1!A1:AV71");
 ASNAYearRow = findall(x -> occursin("2019", x), string.(ASNAHouseCap[:,1]));
 
 #creating table 5a - allocation of investment expenditure (broken into subsections for dict referencing purposes)
