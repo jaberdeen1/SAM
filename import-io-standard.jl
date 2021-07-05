@@ -64,7 +64,8 @@ table5a[table5aRowDict["Imported Commodities, complementary"], table5aColDict["T
 table5a[table5aRowDict["Imported Commodities, competing"], table5aColDict["Total"]] = sum(IO[IORowDict["P6"],IOCapForm]);
 table5a[table5aRowDict["Taxes less subsidies on products"], table5aColDict["Total"]] = sum(IO[IORowDict["P3"],IOCapForm]);
 table5a[table5aRowDict["Other taxes less subsidies on investment"], table5aColDict["Total"]] = sum(IO[IORowDict["P4"],IOCapForm]);
-table5aTaxes = findall(x -> occursin("taxes", x), table5aNameRow);
+table5aTaxes = findall(x -> occursin("taxes", lowercase(x)), table5aNameRow);
+table5aTaxes = table5aTaxes[Not(3)];
 table5a[table5aRowDict["Total indirect taxes"], table5aColDict["Total"]] = sum(table5a[table5aTaxes,table5aColDict["Total"]]);
 table5a[table5aRowDict["Total fixed capital expenditure"], table5aColDict["Total"]] = sum(table5a[Not(table5aRowDict["Total indirect taxes"]),table5aColDict["Total"]]);
 
@@ -82,7 +83,13 @@ table5a[table5aRowDict["Total fixed capital expenditure"], table5aColDict["Gener
 
 #filling in non-total values
 for ring in [1:1:length(table5aColDict)-1;];
-    table5a[table5aRowDict["Domestic Commodities"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["T1"],IOCapForm[1]] / IO[IORowDict["Missing"],IOCapForm[1]];
+    table5a[table5aRowDict["Domestic Commodities"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["T1"],IOCapForm[1]] / IO[IORowDict[missing],IOCapForm[1]];
+    table5a[table5aRowDict["Imported Commodities, complementary"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["P5"],IOCapForm[1]] / IO[IORowDict[missing],IOCapForm[1]];
+    table5a[table5aRowDict["Imported Commodities, competing"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["P6"],IOCapForm[1]] / IO[IORowDict[missing],IOCapForm[1]];
+    table5a[table5aRowDict["Taxes less subsidies on products"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["P3"],IOCapForm[1]] / IO[IORowDict[missing],IOCapForm[1]];
+    table5a[table5aRowDict["Other taxes less subsidies on investment"],ring] = table5a[table5aRowDict["Total fixed capital expenditure"],ring]*IO[IORowDict["P4"],IOCapForm[1]] / IO[IORowDict[missing],IOCapForm[1]];
+    table5a[table5aRowDict["Total indirect taxes"], ring] = sum(table5a[table5aTaxes, ring]);
+end
 
 #creating table 5b - allocation of investment expenditure (broken into subsections for dict referencing purposes)
 #subsection b is fixed capital expenditure
@@ -161,4 +168,3 @@ df[!, "IOCode"]=IOcode
 insertcols!(df, 2, :name => vector)
 D = df2dict(df, :IOCode, :x3)
 =#
-
