@@ -1,10 +1,15 @@
+#using Ipopt: optimize!
 using Base: Int64
 using XLSX: length
-#using Pkg
-#Pkg.add("CSV")
-#Pkg.add("DataFrames")
-#Pkg.add("XLSX")
-using XLSX, DataFrames, Tables;
+#=using Pkg
+Pkg.add("Tables")
+Pkg.add("DataFrames")
+Pkg.add("XLSX")
+Pkg.add("ExcelReaders")
+Pkg.add("JuMP")
+Pkg.add("Ipopt")
+=#
+using XLSX, ExcelReaders DataFrames, Tables, JuMP, Ipopt;
 IOSource = XLSX.readdata("IO.xlsx", "io-table-5!A1:DV130");
 
 #indexing vectors for initial data import groups
@@ -120,7 +125,23 @@ table5b[table5bRowDict["Total change in inventories"], table5bColDict["Financial
 table5b[table5bRowDict["Total change in inventories"], table5bColDict["General Government"]] = first(ASNAGovCap[ASNAYearRow, ASNAGenGovCapChangeInv]);
 
 #fill in non-total value with lagrangian optimisation
+table5bscalingfact = abs(minimum(table5b)) * 1.5;
+table5b = table5b .+ table5bscalingfact;
+mod5b = Model(Ipopt.Optimizer);
+@variable(mod5b, x[1:4, 1:4]);
+@NLobjective(mod5b, Min, sum((x[i,j] - table5bscalingfact) ^ 2 for i in 1:4, j in 1:4));
+for i in 1:4
+    @constraint(mod5b, sum(x[:,i]) == table5b[table5bRowDict["Total change in inventories"],i]);
+end
+for i in 1:4
+    @constraint(mod5b, sum(x[i,:]) == table5b[i,table5bColDict["Total"]]);
+end
+optimize!(mod5b);
+table5b[1:4,1:4]=value.(x);
 
+table5b[1:4,1:4] = table5b[1:4,1:4] .- table5bscalingfact/4;
+table5b[:,5] = table5b[:,5] .- table5bscalingfact;
+table5b[5,:] = table5b[5,:] .- table5bscalingfact;
 
 #creating table 5c - allocation of investment expenditure (broken into subsections for dict referencing purposes)
 #subsection c is totals
@@ -130,7 +151,8 @@ table5cRowDict = Dict(table5cNameRow .=> [1:1:length(table5cNameRow);]);
 table5cColDict = Dict(table5cNameCol .=> [1:1:length(table5cNameCol);]);
 table5c = zeros(length(table5cNameRow), length(table5cNameCol));
 
-#do totals calcuations to get all values
+#do totals calcuations to get all values in 5c
+
 
 #=convert dataframe to dictionary
 function increment!( d::Dict{S, T}, k::S, i::T) where {T<:Real, S<:Any}
