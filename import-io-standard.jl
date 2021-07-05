@@ -13,7 +13,7 @@ using XLSX, ExcelReaders, DataFrames, Tables, JuMP, Ipopt;
 IOSource = XLSX.readdata("IO.xlsx", "io-table-5!A1:DV130");
 
 #filepath cross system compatability code
-if Sys.KERNEL === :NT
+if Sys.KERNEL === :NT || kern === :Windows
     pathmark = "\\"
 else
     pathmark = "/"
