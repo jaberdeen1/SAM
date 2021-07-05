@@ -18,6 +18,7 @@ if Sys.KERNEL === :NT
 else
     pathmark = "/"
 end
+
 #indexing vectors for initial data import groups
 intermediaryTotalsCol = findall(x -> occursin("T4", x), string.(IOSource[3,:]));
 intermediaryTotalsRow = findall(x -> occursin("T1", x), string.(IOSource[:,1]));
@@ -131,11 +132,11 @@ table5b[table5bRowDict["Total change in inventories"], table5bColDict["Financial
 table5b[table5bRowDict["Total change in inventories"], table5bColDict["General Government"]] = first(ASNAGovCap[ASNAYearRow, ASNAGenGovCapChangeInv]);
 
 #fill in non-total value with lagrangian optimisation
-table5bscalingfact = abs(minimum(table5b)) * 1.5;
-table5b = table5b .+ table5bscalingfact;
+table5bScalingFact = abs(minimum(table5b)) * 1.5;
+table5b = table5b .+ table5bScalingFact;
 mod5b = Model(Ipopt.Optimizer);
 @variable(mod5b, x[1:4, 1:4]);
-@NLobjective(mod5b, Min, sum((x[i,j] - table5bscalingfact) ^ 2 for i in 1:4, j in 1:4));
+@NLobjective(mod5b, Min, sum((x[i,j] - table5bScalingFact) ^ 2 for i in 1:4, j in 1:4));
 for i in 1:4
     @constraint(mod5b, sum(x[:,i]) == table5b[table5bRowDict["Total change in inventories"],i]);
 end
@@ -145,9 +146,9 @@ end
 optimize!(mod5b);
 table5b[1:4,1:4]=value.(x);
 
-table5b[1:4,1:4] = table5b[1:4,1:4] .- table5bscalingfact/4;
-table5b[:,5] = table5b[:,5] .- table5bscalingfact;
-table5b[5,:] = table5b[5,:] .- table5bscalingfact;
+table5b[1:4,1:4] = table5b[1:4,1:4] .- table5bScalingFact/4;
+table5b[:,5] = table5b[:,5] .- table5bScalingFact;
+table5b[5,:] = table5b[5,:] .- table5bScalingFact;
 
 #creating table 5c - allocation of investment expenditure (broken into subsections for dict referencing purposes)
 #subsection c is totals
@@ -158,7 +159,7 @@ table5cColDict = Dict(table5cNameCol .=> [1:1:length(table5cNameCol);]);
 table5c = zeros(length(table5cNameRow), length(table5cNameCol));
 
 #do totals calcuations to get all values in 5c
-
+#table5c[] = 
 
 #=convert dataframe to dictionary
 function increment!( d::Dict{S, T}, k::S, i::T) where {T<:Real, S<:Any}
