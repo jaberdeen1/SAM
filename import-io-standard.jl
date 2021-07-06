@@ -131,24 +131,22 @@ table5b[table5bRowDict["Total change in inventories"], table5bColDict["Non-Finan
 table5b[table5bRowDict["Total change in inventories"], table5bColDict["Financial Corporations"]] = first(ASNAFinCap[ASNAYearRow, ASNAFinCapChangeInv]);
 table5b[table5bRowDict["Total change in inventories"], table5bColDict["General Government"]] = first(ASNAGovCap[ASNAYearRow, ASNAGenGovCapChangeInv]);
 
-#fill in non-total value with lagrangian optimisation
-table5bScalingFact = abs(minimum(table5b)) * 1.5;
-table5b = table5b .+ table5bScalingFact;
+#calculate non-total values with lagrangian optimisation
+table5bScalingFact = abs(minimum(table5b)) * 2;
 mod5b = Model(Ipopt.Optimizer);
-@variable(mod5b, x[1:4, 1:4]);
-@NLobjective(mod5b, Min, sum((x[i,j] - table5bScalingFact) ^ 2 for i in 1:4, j in 1:4));
-for i in 1:4
-    @constraint(mod5b, sum(x[:,i]) == table5b[table5bRowDict["Total change in inventories"],i]);
+@variable(mod5b, x[1:(length(table5bNameRow)-1), 1:(length(table5bNameCol)-1)]);
+@NLobjective(mod5b, Min, sum((x[i,j] - table5bScalingFact) ^ 2 for i in 1:(length(table5bNameRow)-1), j in 1:(length(table5bNameCol)-1)));
+for i in 1:(length(table5bNameRow)-1)
+    @constraint(mod5b, sum(x[:,i]) == table5b[table5bRowDict["Total change in inventories"],i]+table5bScalingFact);
 end
-for i in 1:4
-    @constraint(mod5b, sum(x[i,:]) == table5b[i,table5bColDict["Total"]]);
+for i in 1:(length(table5bNameCol)-1)
+    @constraint(mod5b, sum(x[i,:]) == table5b[i,table5bColDict["Total"]]+table5bScalingFact);
 end
 optimize!(mod5b);
-table5b[1:4,1:4]=value.(x);
 
-table5b[1:4,1:4] = table5b[1:4,1:4] .- table5bScalingFact/4;
-table5b[:,5] = table5b[:,5] .- table5bScalingFact;
-table5b[5,:] = table5b[5,:] .- table5bScalingFact;
+#plug back into table 5b
+table5b[1:(length(table5bNameRow)-1),1:(length(table5bNameCol)-1)]=value.(x).-table5bScalingFact/4;
+
 
 #creating table 5c - allocation of investment expenditure (broken into subsections for dict referencing purposes)
 #subsection c is totals
@@ -159,7 +157,15 @@ table5cColDict = Dict(table5cNameCol .=> [1:1:length(table5cNameCol);]);
 table5c = zeros(length(table5cNameRow), length(table5cNameCol));
 
 #do totals calcuations to get all values in 5c
-#table5c[] = 
+table5c[table5cRowDict["Domestic Commodities"],:] = (table5a[table5aRowDict["Domestic Commodities"],:] +
+table5b[table5bRowDict["Domestic Commodities"],:]);
+table5c[table5cRowDict["Imported Commodities"],:] = sum(eachrow(table5a[[table5aRowDict["Imported Commodities, competing"],table5aRowDict["Imported Commodities, complementary"]],:] +
+table5b[[table5bRowDict["Imported Commodities, competing"],table5bRowDict["Imported Commodities, complementary"]],:]));
+table5c[table5cRowDict["Taxes less subsidies on products"],:] = table5a[table5aRowDict["Taxes less subsidies on products"],:];
+table5c[table5cRowDict["Other taxes less subsidies on investment"],:] = (table5a[table5aRowDict["Other taxes less subsidies on investment"],:] +
+table5b[table5bRowDict["Taxes less subsidies on products"],:]);
+table5c[table5cRowDict["Total investment expenditure"],:] = (table5a[table5aRowDict["Total fixed capital expenditure"],:] +
+table5b[table5bRowDict["Total change in inventories"],:]);
 
 #=convert dataframe to dictionary
 function increment!( d::Dict{S, T}, k::S, i::T) where {T<:Real, S<:Any}
