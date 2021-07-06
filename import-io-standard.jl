@@ -60,6 +60,7 @@ ASNAFinCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204026_Fin_Corp_Capital_A
 ASNAGovCap = ExcelReaders.readxl("ASNAData"*pathmark*"5204032_GenGov_Capital_Account.xls", "Data1!A1:AV71");
 ASNAYearRow = findall(x -> occursin("2019", x), string.(ASNAHouseCap[:,1]));
 
+#table 5
 #creating table 5a - allocation of investment expenditure (broken into subsections for dict referencing purposes)
 #subsection a is fixed capital expenditure
 table5aNameCol = ["Households", "Non-Financial Corporations", "Financial Corporations", "General Government", "Total"];
@@ -136,12 +137,12 @@ table5bScalingFact = abs(minimum(table5b)) * 2;
 mod5b = Model(Ipopt.Optimizer);
 @variable(mod5b, x[1:(length(table5bNameRow)-1), 1:(length(table5bNameCol)-1)]);
 @NLobjective(mod5b, Min, sum((x[i,j] - table5bScalingFact) ^ 2 for i in 1:(length(table5bNameRow)-1), j in 1:(length(table5bNameCol)-1)));
-for i in 1:(length(table5bNameRow)-1)
+for i in 1:(length(table5bNameRow)-1);
     @constraint(mod5b, sum(x[:,i]) == table5b[table5bRowDict["Total change in inventories"],i]+table5bScalingFact);
-end
-for i in 1:(length(table5bNameCol)-1)
+end;
+for i in 1:(length(table5bNameCol)-1);
     @constraint(mod5b, sum(x[i,:]) == table5b[i,table5bColDict["Total"]]+table5bScalingFact);
-end
+end;
 optimize!(mod5b);
 
 #plug back into table 5b
@@ -166,6 +167,40 @@ table5c[table5cRowDict["Other taxes less subsidies on investment"],:] = (table5a
 table5b[table5bRowDict["Taxes less subsidies on products"],:]);
 table5c[table5cRowDict["Total investment expenditure"],:] = (table5a[table5aRowDict["Total fixed capital expenditure"],:] +
 table5b[table5bRowDict["Total change in inventories"],:]);
+
+#table 6
+#importing relevant ASNA data
+ASNAHouseInc = ExcelReaders.readxl("ASNAData"*pathmark*"5204036_Household_Income_Account.xls", "Data1!A1:AN71");
+ASNANonFinInc = ExcelReaders.readxl("ASNAData"*pathmark*"5204017_NonFin_Corp_Income_Account.xls", "Data1!A1:AE71");
+ASNAFinInc = ExcelReaders.readxl("ASNAData"*pathmark*"5204025_Fin_Corp_Income_Account.xls", "Data1!A1:AD71");
+ASNAGovInc = ExcelReaders.readxl("ASNAData"*pathmark*"5204030_GenGov_Income_Account.xls", "Data1!A1:DA71");
+ASNAExtInc = ExcelReaders.readxl("ASNAData"*pathmark*"5204043_External_Accounts.xls", "Data1!A1:AI71");
+#initialising table
+table6Name = ["Households", "Non-Financial Corporations", "Financial Corporations", "General Government", "External", "Total"];
+table6Dict = Dict(table6Name .=> [1:1:length(table6Name);]);
+table6 = zeros(length(table6Name),length(table6Name));
+#allocating total collumn and row data
+table6[table6Dict["Total"],table6Dict["Households"]] = (first(ASNAHouseInc[ASNAYearRow,findall(x -> occursin("receivable - Interest", x), string.(ASNAHouseInc[1,:]))])
++first(ASNAHouseInc[ASNAYearRow,findall(x -> occursin("receivable - Imputed interest", x), string.(ASNAHouseInc[1,:]))]));
+table6[table6Dict["Total"],table6Dict["Non-Financial Corporations"]] = (first(ASNANonFinInc[ASNAYearRow,findall(x -> occursin("receivable - Interest", x), string.(ASNANonFinInc[1,:]))])
++first(ASNANonFinInc[ASNAYearRow,findall(x -> occursin("Property income attributed to insurance policyholders", x), string.(ASNANonFinInc[1,:]))]));
+table6[table6Dict["Total"],table6Dict["Financial Corporations"]] = first(ASNAFinInc[ASNAYearRow,findall(x -> occursin("receivable - Interest", x), string.(ASNAFinInc[1,:]))]);
+table6[table6Dict["Total"],table6Dict["General Government"]] = first(ASNAGovInc[ASNAYearRow,findall(x -> occursin("General government ;  Property income receivable - Interest ;", x), string.(ASNAGovInc[1,:]))]);
+table6[table6Dict["Total"],table6Dict["External"]] = first(ASNAExtInc[ASNAYearRow,findall(x -> occursin("receivable - Interest", x), string.(ASNAExtInc[1,:]))]);
+
+table6[table6Dict["Households"],table6Dict["Total"]] = sum(ASNAHouseInc[ASNAYearRow,findall(x -> occursin("Property income payable - Interest", x), string.(ASNAHouseInc[1,:]))]);
+table6[table6Dict["Non-Financial Corporations"],table6Dict["Total"]] = first(ASNANonFinInc[ASNAYearRow,findall(x -> occursin("Property income payable - Interest", x), string.(ASNANonFinInc[1,:]))]);
+table6[table6Dict["Financial Corporations"],table6Dict["Total"]] = (first(ASNAFinInc[ASNAYearRow,findall(x -> occursin("Property income payable - Interest", x), string.(ASNAFinInc[1,:]))])
++first(ASNAFinInc[ASNAYearRow,findall(x -> occursin("payable - Property income attributed to insurance policy holders", x), string.(ASNAFinInc[1,:]))]));
+table6[table6Dict["General Government"],table6Dict["Total"]] = first(ASNAGovInc[ASNAYearRow,findall(x -> occursin("General government ;  Property income payable - Total interest ;", x), string.(ASNAGovInc[1,:]))]);
+table6[table6Dict["External"],table6Dict["Total"]] = first(ASNAExtInc[ASNAYearRow,findall(x -> occursin("Property income payable - Interest", x), string.(ASNAExtInc[1,:]))]);
+
+if 0.98*sum(table6[:,length(table6Name)])<sum(table6[length(table6Name),:])<1.02*sum(table6[:,length(table6Name)])
+else
+    error("Large discrepancy in row and collumn total sums in table 6")
+end
+
+
 
 #=convert dataframe to dictionary
 function increment!( d::Dict{S, T}, k::S, i::T) where {T<:Real, S<:Any}
