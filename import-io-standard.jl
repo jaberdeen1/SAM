@@ -200,7 +200,52 @@ else
     error("Large discrepancy in row and collumn total sums in table 6")
 end
 
+#=solve missing values with Ipopt
+mod6 = Model(Ipopt.Optimizer);
+@variable(mod6, x[1:(length(table6Name)-1), 1:(length(table6Name)-1)]>=0);
+@NLobjective(mod6, Min, sum((x[i,j]) ^ 2 for i in 1:(length(table6Name)-1), j in 1:(length(table6Name)-1)));
+for i in 1:(length(table6Name)-1);
+    @constraint(mod6, sum(x[:,i]) == table6[table6Dict["Total"],i]-sum(table6[1:(length(table6Name)-1),i]));
+end;
+for i in 1:(length(table6Name)-1);
+    @constraint(mod6, sum(x[i,:]) == table6[i,table6Dict["Total"]]-sum(table6[i,1:(length(table6Name)-1)]));
+end;
+for i in 1:(length(table6Name)-1);
+    @constraint(mod6, x[i,table6Dict["General Government"]] == 0);
+end;
+@constraint(mod6, x[table6Dict["Households"],table6Dict["Households"]] == 0);
+@constraint(mod6, x[table6Dict["External"],table6Dict["Households"]] == 0);
+@constraint(mod6, x[table6Dict["Households"],table6Dict["External"]] == 0);
+@constraint(mod6, x[table6Dict["External"],table6Dict["External"]] == 0);
+optimize!(mod6);
 
+table6[1:(length(table6Name)-1), 1:(length(table6Name)-1)] = table6[1:(length(table6Name)-1), 1:(length(table6Name)-1)] + value.(x);
+=#
+
+#solve for missing values with scaling
+table6Step3 = zeros(length(table6Name),length(table6Name));
+table6Step3Row = [table6Dict["Non-Financial Corporations"],table6Dict["Financial Corporations"],table6Dict["General Government"]];
+table6Step3Col = [table6Dict["Households"],table6Dict["External"]];
+for i in table6Step3Col;
+    for ring in table6Step3Row;
+        table6Step3[ring,i] = (table6[table6Dict["Total"],i]-sum(table6[1:(length(table6Name)-1),i]))*(
+            table6[ring,table6Dict["Total"]]-sum(table6[ring,1:(length(table6Name)-1)]))/sum(table6[
+            table6Step3Row,table6Dict["Total"]]-sum(eachcol(table6[table6Step3Row,1:(length(table6Name)-1)])));
+    end
+end
+table6 = table6+table6Step3;
+
+table6Step4 = zeros(length(table6Name),length(table6Name));
+table6Step4Row = [1:1:(length(table6Name)-1);];
+table6Step4Col = [table6Dict["Non-Financial Corporations"],table6Dict["Financial Corporations"]];
+for i in table6Step4Col;
+    for ring in table6Step4Row;
+        table6Step4[ring,i] = (table6[table6Dict["Total"],i]-sum(table6[1:(length(table6Name)-1),i]))*(
+            table6[ring,table6Dict["Total"]]-sum(table6[ring,1:(length(table6Name)-1)]))/sum(table6[
+            table6Step4Row,table6Dict["Total"]]-sum(eachcol(table6[table6Step4Row,1:(length(table6Name)-1)])));
+    end
+end
+table6 = table6+table6Step4;
 
 #=convert dataframe to dictionary
 function increment!( d::Dict{S, T}, k::S, i::T) where {T<:Real, S<:Any}
